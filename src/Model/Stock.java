@@ -1,37 +1,43 @@
 package Model;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 public class Stock {
+
     private final String stockSymbol;
-    private long availableQuantity;
+    private final AtomicLong availableQuantity;
 
-    public Stock(String stockSymbol, long availableQuantity) {
+    public Stock(String stockSymbol, long quantity) {
         this.stockSymbol = stockSymbol;
-        this.availableQuantity = availableQuantity;
+        this.availableQuantity = new AtomicLong(quantity);
     }
 
+    public boolean buyStocks(int quantity) {
 
-    public synchronized boolean buyStocks(int quantity){
-        if(quantity <= 0) return false;
-        if(quantity <= availableQuantity){
-            availableQuantity -= quantity;
-            return true;
+        while (true) {
+
+            long current = availableQuantity.get();
+
+            if (quantity > current)
+                return false;
+
+            long updated = current - quantity;
+
+            if (availableQuantity.compareAndSet(current, updated))
+                return true;
         }
-        return false;
     }
 
+    public void sellStocks(int quantity) {
 
-    public synchronized boolean sellStocks(int quantity){
-        if(quantity <= 0) return false;
-        availableQuantity += quantity;
-        return true;
+        availableQuantity.addAndGet(quantity);
     }
 
+    public long getAvailableQuantity() {
+        return availableQuantity.get();
+    }
 
     public String getStockSymbol() {
         return stockSymbol;
-    }
-
-    public synchronized long getAvailableQuantity() {
-        return availableQuantity;
     }
 }
