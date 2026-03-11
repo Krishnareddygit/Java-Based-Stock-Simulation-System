@@ -10,7 +10,7 @@ public class Stock {
     }
 
 
-    synchronized boolean buyStocks(int quantity){
+    public synchronized boolean buyStocks(int quantity){
         if(quantity <= 0) return false;
         if(quantity <= availableQuantity){
             availableQuantity -= quantity;
@@ -20,7 +20,7 @@ public class Stock {
     }
 
 
-    synchronized boolean sellStocks(int quantity){
+    public synchronized boolean sellStocks(int quantity){
         if(quantity <= 0) return false;
         availableQuantity += quantity;
         return true;
