@@ -1,9 +1,6 @@
 package Service;
 
-import Model.Stock;
-import Model.Trade;
-import Model.TradeRequest;
-import Model.TradeType;
+import Model.*;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -11,18 +8,24 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.*;
 
+import java.util.concurrent.*;
+
 public class TradingSystem {
 
-    private final ConcurrentHashMap<String, Stock> stocks = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Stock> stocks =
+            new ConcurrentHashMap<>();
 
-    private final ConcurrentHashMap<String, ConcurrentHashMap<String,Integer>> userportfolio = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String,
+            ConcurrentHashMap<String,Integer>> userPortfolios =
+            new ConcurrentHashMap<>();
 
-    private final ConcurrentLinkedQueue<Trade> successfulTrades =  new ConcurrentLinkedQueue<>();
+    private final ConcurrentLinkedQueue<Trade> tradeResults =
+            new ConcurrentLinkedQueue<>();
 
     private final ExecutorService executor;
 
-    public TradingSystem(int threadcount) {
-        executor = Executors.newFixedThreadPool(threadcount);
+    public TradingSystem(int threadCount){
+        executor = Executors.newFixedThreadPool(threadCount);
     }
 
     public void addStock(Stock stock){
@@ -33,31 +36,53 @@ public class TradingSystem {
         executor.submit(() -> processTrade(request));
     }
 
-    public void processTrade(TradeRequest request){
-        Stock stock = stocks.get(request.getStockSymbol());
-        if(stock == null) return;
+    private void processTrade(TradeRequest request){
 
-        userportfolio.putIfAbsent(request.getUserId(),
+        Stock stock = stocks.get(request.getStockSymbol());
+
+        if(stock == null){
+            tradeResults.add(
+                    new Trade(
+                            request.getUserId(),
+                            request.getStockSymbol(),
+                            request.getQuantity(),
+                            request.getTradeType(),
+                            TradeStatus.FAILED,
+                            "Stock not found"
+                    )
+            );
+            return;
+        }
+
+        userPortfolios.putIfAbsent(
+                request.getUserId(),
                 new ConcurrentHashMap<>());
 
         ConcurrentHashMap<String,Integer> portfolio =
-                userportfolio.get(request.getUserId());
+                userPortfolios.get(request.getUserId());
 
         boolean success = false;
+        String message = "";
 
         if(request.getTradeType() == TradeType.BUY){
 
             success = stock.buyStocks(request.getQuantity());
 
             if(success){
+
                 portfolio.merge(
                         request.getStockSymbol(),
                         request.getQuantity(),
-                        Integer::sum
-                );
+                        Integer::sum);
+
+                message = "Buy successful";
+            }
+            else{
+                message = "Insufficient market stock";
             }
 
-        } else {
+        }
+        else{
 
             int owned =
                     portfolio.getOrDefault(
@@ -72,20 +97,24 @@ public class TradingSystem {
                 stock.sellStocks(request.getQuantity());
 
                 success = true;
+                message = "Sell successful";
+            }
+            else{
+                message = "Insufficient user holdings";
             }
         }
 
-        if(success){
+        Trade result =
+                new Trade(
+                        request.getUserId(),
+                        request.getStockSymbol(),
+                        request.getQuantity(),
+                        request.getTradeType(),
+                        success ? TradeStatus.SUCCESS : TradeStatus.FAILED,
+                        message
+                );
 
-            Trade trade = new Trade(
-                    request.getUserId(),
-                    request.getStockSymbol(),
-                    request.getQuantity(),
-                    request.getTradeType()
-            );
-
-            successfulTrades.add(trade);
-        }
+        tradeResults.add(result);
     }
 
     public void shutdownAndAwaitTermination(){
@@ -94,12 +123,13 @@ public class TradingSystem {
 
         try{
             executor.awaitTermination(1,TimeUnit.MINUTES);
-        } catch (InterruptedException e){
+        }
+        catch (InterruptedException e){
             Thread.currentThread().interrupt();
         }
     }
 
-    public ConcurrentLinkedQueue<Trade> getSuccessfulTrades(){
-        return successfulTrades;
+    public ConcurrentLinkedQueue<Trade> getTradeResults(){
+        return tradeResults;
     }
 }

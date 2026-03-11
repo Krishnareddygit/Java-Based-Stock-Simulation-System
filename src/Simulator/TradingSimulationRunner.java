@@ -25,7 +25,7 @@ public class TradingSimulationRunner {
         system.shutdownAndAwaitTermination();
 
         ReportGenerator.generateReports(
-                system.getSuccessfulTrades());
+                system.getTradeResults());
 
         long end = System.currentTimeMillis();
 
