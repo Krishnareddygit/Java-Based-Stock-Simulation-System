@@ -67,11 +67,13 @@ public class ReportGenerator {
 
         trades.forEach(t ->
                 System.out.println(
-                        t.getUserId() + " "
+                        "[" + t.getTimestamp() + "] "
+                                + t.getUserId() + " "
                                 + t.getTradeType() + " "
                                 + t.getQuantity() + " "
                                 + t.getStockSymbol()
-                                + " -> " + t.getStatus()
+                                + " -> "
+                                + t.getStatus()
                                 + " (" + t.getMessage() + ")"
                 )
         );
